@@ -1,4 +1,4 @@
-# Express.js Login and Registration with Two-Factor Authentication
+# Express.js Login and Registration with Two-Factor Authentication for the WSB Gdańsk
 
 This is an Express.js server that includes registration, login, and two-factor authentication functionality for a Polish phone number (+48). The server uses the Nexmo API to send SMS messages, and passwords are hashed and salted using bcrypt.
 
