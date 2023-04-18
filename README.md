@@ -31,6 +31,19 @@ To register a new user, make a `POST` request to `/register` with the following 
 
 ```
 
+The server will respond with a `200` status code and a success message if the registration is successful.
+
+### Login
+
+To log in to an existing account, make a `POST` request to `/login` with the following parameters:
+
+```
+{
+"username": "your_username",
+"password": "your_password"
+}
+```
+
 If the username and password are correct, the server will send a verification code to the user's phone number via SMS. The user will then need to enter this code to complete the login process.
 
 ### Verification
