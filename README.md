@@ -1,9 +1,55 @@
-This example code uses the `Nexmo` library to send SMS messages with verification codes. To use it, you will need to sign up for a Nexmo account and get an API key and secret. You will also need to set up a virtual number that can send SMS messages.
+# Express.js Login and Registration with Two-Factor Authentication
 
-In the registration route, the user's password is salted and hashed before being stored in the `users` data store.
+This is an Express.js server that includes registration, login, and two-factor authentication functionality for a Polish phone number (+48). The server uses the Nexmo API to send SMS messages, and passwords are hashed and salted using bcrypt.
 
-In the login route, the user's password is compared with the hashed password in the data store. If the password matches, a verification code is generated and sent to the user's phone number via SMS using the Nexmo client. The code and the user's username are stored in memory for verification.
+## Installation
 
-In the verification route, the user's entered code is compared with the stored code. If they match, the user is logged in and the verification properties are removed from the user object. If the user enters an incorrect code too many times, they are blocked from further attempts.
+1. Clone the repository to your local machine.
+2. Install dependencies using `npm install`.
+3. Set up environment variables for your Nexmo API key, secret, and virtual number. You can do this by creating a `.env` file in the root directory of the project, and adding the following lines:
 
-Note that this is just an example code, and you should modify and customize it to fit your specific requirements. You may also want to add additional security measures, such as rate limiting or IP blocking, to prevent abuse of the verification system.
+```
+NEXMO_API_KEY=your_api_key
+NEXMO_API_SECRET=your_api_secret
+NEXMO_VIRTUAL_NUMBER=your_virtual_number
+```
+
+4. Start the server using `npm start`.
+
+## Usage
+
+### Registration
+
+To register a new user, make a `POST` request to `/register` with the following parameters:
+
+```
+{
+"username": "your_username",
+"password": "your_password",
+"phone": "your_phone_number"
+}
+
+```
+
+If the username and password are correct, the server will send a verification code to the user's phone number via SMS. The user will then need to enter this code to complete the login process.
+
+### Verification
+
+To verify a user's phone number, make a `POST` request to `/verify` with the following parameters:
+
+```
+{
+"username": "your_username",
+"code": "your_verification_code"
+}
+```
+
+If the verification code is correct, the user will be logged in and the verification properties will be removed from the user object.
+
+## Known Issues
+
+Please note that there is currently a known issue with the verification code limit - if a user enters an incorrect code too many times, they will be blocked from further attempts.
+
+## Credits
+
+This server was created as part of a homework assignment for the WSB Gdańsk. It was built by Artem Verbytskyi.
