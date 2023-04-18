@@ -78,18 +78,13 @@ app.post("/login", async (req, res) => {
     }
     const match = await bcrypt.compare(password, user.password);
     if (match) {
-      try {
-        const { request_id } = await vonage.verify.start({
-          number: user.phoneNumber,
-          brand: process.env.MY_BRAND_NAME,
-        });
-        user.requestId = request_id;
-        await user.save();
-        res.json(user);
-      } catch (error) {
-        console.error(error);
-        res.status(500).send("Internal server error");
-      }
+      const { request_id } = await vonage.verify.start({
+        number: user.phoneNumber,
+        brand: process.env.MY_BRAND_NAME,
+      });
+      user.requestId = request_id;
+      await user.save();
+      res.json(user);
     } else {
       res.status(401).send("Invalid username or password");
     }
