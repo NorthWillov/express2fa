@@ -12,36 +12,25 @@ const vonage = new Vonage({
 });
 
 // Define the user schema
-const userSchema = new mongoose.Schema(
-  {
-    username: {
-      type: String,
-      required: true,
-      unique: true,
-    },
-    password: {
-      type: String,
-      required: true,
-    },
-    phoneNumber: {
-      type: String,
-      required: true,
-    },
-    requestId: {
-      type: String,
-      default: null,
-    },
-    loginAttempts: {
-      type: Number,
-      default: 0,
-    },
-    lastLoginAttempt: {
-      type: Date,
-      default: null,
-    },
+const userSchema = new mongoose.Schema({
+  username: {
+    type: String,
+    required: true,
+    unique: true,
   },
-  { timestamps: true }
-);
+  password: {
+    type: String,
+    required: true,
+  },
+  phoneNumber: {
+    type: String,
+    required: true,
+  },
+  requestId: {
+    type: String,
+    default: null,
+  },
+});
 
 // Define the User model
 const User = mongoose.model("User", userSchema);
@@ -71,7 +60,7 @@ app.post("/register", async (req, res) => {
     const hash = await bcrypt.hash(password, 10);
     const user = new User({ username, password: hash, phoneNumber });
     await user.save();
-    res.send("User registered successfully!");
+    res.status(200).send("User registered successfully!");
   } catch (error) {
     console.error(error);
     res.status(500).send("Internal server error");

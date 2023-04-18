@@ -6,12 +6,13 @@ This is an Express.js server that includes registration, login, and two-factor a
 
 1. Clone the repository to your local machine.
 2. Install dependencies using `npm install`.
-3. Set up environment variables for your Nexmo API key, secret, and virtual number. You can do this by creating a `.env` file in the root directory of the project, and adding the following lines:
+3. Set up environment variables for your VONAGE API key, secret. You can do this by creating a `.env` file in the root directory of the project, and adding the following lines:
 
 ```
-NEXMO_API_KEY=your_api_key
-NEXMO_API_SECRET=your_api_secret
-NEXMO_VIRTUAL_NUMBER=your_virtual_number
+VONAGE_API_KEY=your_api_key
+VONAGE_API_SECRET=your_api_secret
+MY_BRAND_NAME=your_brand_name
+MONGODB_URI=your_db_link
 ```
 
 4. Start the server using `npm start`.
@@ -48,20 +49,16 @@ If the username and password are correct, the server will send a verification co
 
 ### Verification
 
-To verify a user's phone number, make a `POST` request to `/verify` with the following parameters:
+To verify a user, make a `POST` request to `/verify` with the following parameters:
 
 ```
 {
-"username": "your_username",
-"code": "your_verification_code"
+  "request_id": "<requestId that is stored in user model>",
+  "code": "<verification code from your phone>"
 }
 ```
 
-If the verification code is correct, the user will be logged in and the verification properties will be removed from the user object.
-
-## Known Issues
-
-Please note that there is currently a known issue with the verification code limit - if a user enters an incorrect code too many times, they will be blocked from further attempts.
+If the verification code is correct, the user will be logged in
 
 ## Credits
 
