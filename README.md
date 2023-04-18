@@ -27,7 +27,7 @@ To register a new user, make a `POST` request to `/register` with the following 
 {
 "username": "your_username",
 "password": "your_password",
-"phone": "your_phone_number"
+"phoneNumber": "your_phone_number"
 }
 
 ```
