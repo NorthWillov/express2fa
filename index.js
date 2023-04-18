@@ -1,134 +1,138 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const bcrypt = require("bcryptjs");
-const Nexmo = require("nexmo");
+const dotenv = require("dotenv");
+const { Vonage } = require("@vonage/server-sdk");
+const mongoose = require("mongoose");
 
-const app = express();
-
-app.use(bodyParser.json());
-
-// Dummy data store for users
-const users = [];
-
-// Set up Nexmo client for SMS verification
-const nexmo = new Nexmo({
-  apiKey: "YOUR_API_KEY",
-  apiSecret: "YOUR_API_SECRET",
+dotenv.config();
+const vonage = new Vonage({
+  apiKey: process.env.VONAGE_API_KEY,
+  apiSecret: process.env.VONAGE_API_SECRET,
 });
 
-// Registration route
+// Define the user schema
+const userSchema = new mongoose.Schema(
+  {
+    username: {
+      type: String,
+      required: true,
+      unique: true,
+    },
+    password: {
+      type: String,
+      required: true,
+    },
+    phoneNumber: {
+      type: String,
+      required: true,
+    },
+    requestId: {
+      type: String,
+      default: null,
+    },
+    loginAttempts: {
+      type: Number,
+      default: 0,
+    },
+    lastLoginAttempt: {
+      type: Date,
+      default: null,
+    },
+  },
+  { timestamps: true }
+);
+
+// Define the User model
+const User = mongoose.model("User", userSchema);
+
+// Connect to the MongoDB database
+mongoose
+  .connect(process.env.MONGODB_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+  })
+  .then(() => {
+    console.log("Connected to MongoDB database");
+  })
+  .catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+
+const app = express();
+app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.json());
+
+// Handle registration requests
 app.post("/register", async (req, res) => {
   try {
-    const { username, password } = req.body;
-
-    // Check if user already exists
-    if (users.find((user) => user.username === username)) {
-      return res.status(400).json({ message: "Username already exists" });
-    }
-
-    // Generate salt and hash password
-    const salt = await bcrypt.genSalt();
-    const hashedPassword = await bcrypt.hash(password, salt);
-
-    // Create new user object
-    const user = {
-      username,
-      password: hashedPassword,
-    };
-
-    // Add user to data store
-    users.push(user);
-
-    res.status(201).json({ message: "User registered successfully" });
+    const { username, password, phoneNumber } = req.body;
+    const hash = await bcrypt.hash(password, 10);
+    const user = new User({ username, password: hash, phoneNumber });
+    await user.save();
+    res.send("User registered successfully!");
   } catch (error) {
-    res.status(500).json({ message: "Something went wrong" });
+    console.error(error);
+    res.status(500).send("Internal server error");
   }
 });
 
-// Login route
+// Handle login requests
 app.post("/login", async (req, res) => {
   try {
     const { username, password } = req.body;
-
-    // Check if user exists
-    const user = users.find((user) => user.username === username);
+    const user = await User.findOne({ username });
     if (!user) {
-      return res.status(400).json({ message: "Invalid username or password" });
+      res.status(401).send("Invalid username or password");
+      return;
     }
-
-    // Compare password with hash
-    const passwordMatch = await bcrypt.compare(password, user.password);
-    if (!passwordMatch) {
-      return res.status(400).json({ message: "Invalid username or password" });
-    }
-
-    // Generate verification code
-    const code = Math.floor(100000 + Math.random() * 900000);
-
-    // Send verification code via SMS
-    nexmo.message.sendSms(
-      "YOUR_VIRTUAL_NUMBER", // Your virtual number
-      "+48YOUR_USER_NUMBER", // User's number with +48 country code
-      `Your verification code is ${code}`, // SMS message
-      (err, responseData) => {
-        if (err) {
-          console.log(err);
-          return res.status(500).json({ message: "Something went wrong" });
-        } else {
-          console.log(responseData);
-          // Store code and user in memory for verification
-          user.verificationCode = code;
-          user.verificationAttempts = 0;
-          return res.status(200).json({ message: "Verification code sent" });
-        }
+    const match = await bcrypt.compare(password, user.password);
+    if (match) {
+      try {
+        const { request_id } = await vonage.verify.start({
+          number: user.phoneNumber,
+          brand: process.env.MY_BRAND_NAME,
+        });
+        user.requestId = request_id;
+        await user.save();
+        res.json(user);
+      } catch (error) {
+        console.error(error);
+        res.status(500).send("Internal server error");
       }
-    );
+    } else {
+      res.status(401).send("Invalid username or password");
+    }
   } catch (error) {
-    res.status(500).json({ message: "Something went wrong" });
+    console.error(error);
+    res.status(500).send("Internal server error");
   }
 });
 
-// Verification route
+// Handle 2FA requests
 app.post("/verify", async (req, res) => {
   try {
-    const { username, code } = req.body;
-
-    // Check if user exists
-    const user = users.find((user) => user.username === username);
+    const { code, request_id } = req.body;
+    const user = await User.findOne({ requestId: request_id });
     if (!user) {
-      return res
-        .status(400)
-        .json({ message: "Invalid username or verification code" });
+      res.status(401).send("Invalid verification code");
+      return;
     }
-
-    // Check if verification attempts exceeded limit
-    if (user.verificationAttempts >= 3) {
-      return res
-        .status(400)
-        .json({ message: "Too many verification attempts" });
+    const check = await vonage.verify.check(request_id, code);
+    if (check.status === "0") {
+      res.send("Verification succeeded!");
+    } else {
+      res.send(check);
     }
-
-    // Check if verification code matches stored code
-
-    if (code !== user.verificationCode) {
-      // Increment verification attempts
-      user.verificationAttempts++;
-      return res
-        .status(400)
-        .json({ message: "Invalid username or verification code" });
-    }
-
-    // Remove verification properties from user object
-    delete user.verificationCode;
-    delete user.verificationAttempts;
-
-    res.status(200).json({ message: "User logged in successfully" });
   } catch (error) {
-    res.status(500).json({ message: "Something went wrong" });
+    console.error(error);
+    res.status(500).send("Internal server error");
   }
 });
 
-// Start server
-app.listen(3000, () => {
-  console.log("Server started on port 3000");
+// Start the server
+const port = process.env.PORT || 3000;
+app.listen(port, () => {
+  console.log(`Server started on port ${port}`);
 });
